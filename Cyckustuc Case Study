@@ -1,0 +1,70 @@
+## Case Study for Google Data Analytics Course
+install.packages("tidyverse")
+install.packages("readr")
+install.packages("janitor")
+install.packages("ggplot2")
+install.packages("lubridate")
+install.packages("skimr")
+library(tidyverse)
+library(readr)
+library(janitor)
+library(ggplot2)
+library(lubridate)
+library(skimr)
+
+## load up all data files (csv files)
+apr<-read_csv("~/bike_rides/202004-divvy-tripdata.csv")
+may<-read_csv("~/bike_rides/202005-divvy-tripdata.csv")
+jun<-read_csv("~/bike_rides/202006-divvy-tripdata.csv")
+jul<-read_csv("~/bike_rides/202007-divvy-tripdata.csv")
+aug<-read_csv("~/bike_rides/202008-divvy-tripdata.csv")
+sep<-read_csv("~/bike_rides/202009-divvy-tripdata.csv")
+oct<-read_csv("~/bike_rides/202010-divvy-tripdata.csv")
+nov<-read_csv("~/bike_rides/202011-divvy-tripdata.csv")
+dec<-read_csv("~/bike_rides/202012-divvy-tripdata.csv")
+jan<-read_csv("~/bike_rides/202101-divvy-tripdata.csv")
+feb<-read_csv("~/bike_rides/202102-divvy-tripdata.csv")
+mar<-read_csv("~/bike_rides/202103-divvy-tripdata.csv")
+
+## use rbind to combine all the csv files together
+bike_rides<-rbind(apr, may, jun, jul, aug, sep, oct, nov, dec, jan, feb, mar)
+
+## structure of the data
+str(bike_rides)
+
+## check info about the data
+colnames(bike_rides)
+dim(bike_rides)
+nrow(bike_rides)
+summary(bike_rides)
+
+## remove empty rows & columns with remove_empty function
+bike_rides<-remove_empty(bike_rides, which=c("rows"))
+bike_rides<-remove_empty(bike_rides, which=c("cols"))
+skim(bike_rides)
+
+## POSIXct is the time
+## converts the character data in the df into a date format
+bike_rides_started_at<-ymd_hms(bike_rides$started_at) ##changes the column to ymd_hms
+bike_rides_ended_at<-ymd_hms(bike_rides$ended_at) ##changes the column to ymd_hms
+bike_rides$Ymd<-as.Date(bike_rides$started_at) ##prints it in the format YYYY-MM-DD
+
+## converts the column into hours from 0-24
+bike_rides$start_time<-hour(bike_rides$started_at)
+bike_rides$end_time<-hour(bike_rides$ended_at)
+
+## need $ to extract hours and minutes that we already changed into a date function
+bike_rides$hour<-difftime(bike_rides$ended_at, bike_rides$started_at,units="hour")
+bike_rides$minutes<-difftime(bike_rides$ended_at, bike_rides$started_at,units="min")
+
+bike_ride_length<-bike_rides %>% 
+  filter(ride_length_min>0) %>% 
+  drop_na()
+
+bike_rides1<-bike_rides %>% 
+  group_by(ymd,start_time,member_casual) %>%
+  summarize(
+    Average =mean(minutes),
+    Median =median(minutes),
+    Total= sum(minutes)
+  )
