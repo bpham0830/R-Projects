@@ -36,14 +36,14 @@ bike_rides<-rbind(apr, may, jun, jul, aug, sep, oct, nov, dec, jan, feb, mar)
 bike_rides1<-bike_rides
 
 ## add relevant columns
-bike_rides1$date<-as.Date(bike_rides1$started_at) #add a date column
-bike_rides1$month<-format(as.Date(bike_rides1$started_at), "%b_%y")   #add a month column formatted as short hand_year (e.g. jan_2022)
-bike_rides1$day<-format(as.Date(bike_rides1$date), "%d")  #add a day column
-bike_rides1$year<-format(as.Date(bike_rides1$date), "%Y")  #add a year column
-bike_rides1$weekday<-format(as.Date(bike_rides1$date), "%A")  #add a day of week column
-bike_rides1$time<-format(bike_rides1$started_at, format = "%H:%M")  #add a time started column
-bike_rides1$time<-as.POSIXct(bike_rides1$time, format = "%H:%M")  #change format for the time column for purposes later
-bike_rides1$ride_length<-(as.double(difftime(bike_rides1$ended_at, bike_rides1$started_at))) /60  #calculate ride length in minutes
+bike_rides1$date<-as.Date(bike_rides1$started_at) # adds a date column
+bike_rides1$month<-format(as.Date(bike_rides1$started_at), "%b_%y")   # adds a month column formatted as short hand_year (e.g. jan_2022)
+bike_rides1$day<-format(as.Date(bike_rides1$date), "%d")  # adds a day column
+bike_rides1$year<-format(as.Date(bike_rides1$date), "%Y")  # adds a year column
+bike_rides1$weekday<-format(as.Date(bike_rides1$date), "%A")  # adds a day of week column
+bike_rides1$time<-format(bike_rides1$started_at, format = "%H:%M")  # adds a time started column
+bike_rides1$time<-as.POSIXct(bike_rides1$time, format = "%H:%M")  # changes format for the time column for purposes later
+bike_rides1$ride_length<-(as.double(difftime(bike_rides1$ended_at, bike_rides1$started_at))) /60  # calculates ride length in minutes
 
 ## check specifics of the data
 str(bike_rides1) # structure of data
@@ -104,7 +104,7 @@ bike_rides1 %>%
 
 
 ## Data Viz!
-bike_rides1 %>%    #total rides broken down by weekday
+bike_rides1 %>%    # total rides broken down by weekday
   group_by(customer_type, weekday) %>% 
   summarise(number_of_rides = n() ) %>% 
   arrange(customer_type, weekday) %>% 
@@ -122,7 +122,7 @@ bike_rides1 %>%   # total rides broken down by month
   scale_y_continuous(breaks = c(100000, 200000, 300000, 400000), labels = c("100K", "200K", "300K", "400K")) + theme(axis.text.x = element_text(angle = 45))
 
 
-bike_rides1 %>%   # Average length by Customer Type and Day of Week
+bike_rides1 %>%   # Average length by customer type and day of Week
   group_by(customer_type, weekday) %>% 
   summarise(average_ride_length = mean(ride_length)) %>% 
   ggplot(aes(x=weekday, y = average_ride_length, fill = customer_type))+
@@ -131,7 +131,7 @@ bike_rides1 %>%   # Average length by Customer Type and Day of Week
                                        fill = "Type of Membership")
 
 
-bike_rides1 %>%  # Average ride length by customer type and month
+bike_rides1 %>%  # Average ride length by customer Type and month
   group_by(customer_type, month) %>% 
   summarise(average_ride_length = mean(ride_length)) %>% 
   ggplot(aes(x=month, y = average_ride_length, fill = customer_type))+ 
