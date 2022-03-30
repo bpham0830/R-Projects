@@ -1,15 +1,17 @@
 ## Case Study for Google Data Analytics Course
+
+## Install packages
 install.packages("tidyverse")
-install.packages("readr")
-install.packages("janitor")
-install.packages("ggplot2")
 install.packages("lubridate")
+install.packages("janitor")
+install.packages("readr")
+install.packages("ggplot2")
 install.packages("skimr")
 library(tidyverse)
-library(readr)
-library(janitor)
-library(ggplot2)
 library(lubridate)
+library(janitor)
+library(readr)
+library(ggplot2)
 library(skimr)
 
 ## load up all data files (csv files)
@@ -26,45 +28,129 @@ jan<-read_csv("~/bike_rides/202101-divvy-tripdata.csv")
 feb<-read_csv("~/bike_rides/202102-divvy-tripdata.csv")
 mar<-read_csv("~/bike_rides/202103-divvy-tripdata.csv")
 
+
 ## use rbind to combine all the csv files together
 bike_rides<-rbind(apr, may, jun, jul, aug, sep, oct, nov, dec, jan, feb, mar)
 
-## structure of the data
-str(bike_rides)
+## backup copy of data
+bike_rides1<-bike_rides
 
-## check info about the data
-colnames(bike_rides)
-dim(bike_rides)
-nrow(bike_rides)
-summary(bike_rides)
+## add relevant columns
+bike_rides1$date<-as.Date(bike_rides1$started_at) #add a date column
+bike_rides1$month<-format(as.Date(bike_rides1$started_at), "%b_%y")   #add a month column formatted as short hand_year (e.g. jan_2022)
+bike_rides1$day<-format(as.Date(bike_rides1$date), "%d")  #add a day column
+bike_rides1$year<-format(as.Date(bike_rides1$date), "%Y")  #add a year column
+bike_rides1$weekday<-format(as.Date(bike_rides1$date), "%A")  #add a day of week column
+bike_rides1$time<-format(bike_rides1$started_at, format = "%H:%M")  #add a time started column
+bike_rides1$time<-as.POSIXct(bike_rides1$time, format = "%H:%M")  #change format for the time column for purposes later
+bike_rides1$ride_length<-(as.double(difftime(bike_rides1$ended_at, bike_rides1$started_at))) /60  #calculate ride length in minutes
 
-## remove empty rows & columns with remove_empty function
-bike_rides<-remove_empty(bike_rides, which=c("rows"))
-bike_rides<-remove_empty(bike_rides, which=c("cols"))
-skim(bike_rides)
+## check specifics of the data
+str(bike_rides1) # structure of data
+colnames(bike_rides1) # names of the columns
+dim(bike_rides1) # dimensions of the data
+nrow(bike_rides1) # number of rows
+summary(bike_rides1) # summary of data
 
-## POSIXct is the time
-## converts the character data in the df into a date format
-bike_rides_started_at<-ymd_hms(bike_rides$started_at) ##changes the column to ymd_hms
-bike_rides_ended_at<-ymd_hms(bike_rides$ended_at) ##changes the column to ymd_hms
-bike_rides$Ymd<-as.Date(bike_rides$started_at) ##prints it in the format YYYY-MM-DD
+## Cleaning the data
+bike_rides1<-distinct(bike_rides1)  # removes any duplicates
+bike_rides1<-bike_rides1[!bike_rides1$ride_length<1,] # gets rid of negative timed rides
+bike_rides1<-bike_rides1[!bike_rides1$ride_length>1440,] # gets rid of too long rides because rides should be from 1 day or 1440 minutes
 
-## converts the column into hours from 0-24
-bike_rides$start_time<-hour(bike_rides$started_at)
-bike_rides$end_time<-hour(bike_rides$ended_at)
+## Change a few column names for clarification
+bike_rides1<-rename(bike_rides1, customer_type = member_casual) 
+bike_rides1<-rename(bike_rides1, bike_type = rideable_type)
 
-## need $ to extract hours and minutes that we already changed into a date function
-bike_rides$hour<-difftime(bike_rides$ended_at, bike_rides$started_at,units="hour")
-bike_rides$minutes<-difftime(bike_rides$ended_at, bike_rides$started_at,units="min")
+## Filter out data we will not be using and remove missing data
+bike_rides1 <- bike_rides1 %>% select(bike_type, customer_type, started_at, date, month, day, year, weekday, time, ride_length)
+drop_na(bike_rides1)
 
-bike_ride_length<-bike_rides %>% 
-  filter(ride_length_min>0) %>% 
-  drop_na()
+## Remove null/empty data: NOTE if not specified it deafulats to c("rows", "cols")
+remove_empty(bike_rides1)
+remove_missing(bike_rides1)
 
-bike_rides1<-bike_rides %>% 
-  group_by(ymd,start_time,member_casual) %>%
-  summarize(
-    Average =mean(minutes),
-    Median =median(minutes),
-    Total= sum(minutes)
-  )
+## Put data in order to help minimize confusion
+# This will help keep the results in order based on day of week and by month
+bike_rides1$weekday<-ordered(bike_rides1$weekday, levels=c("Monday", "Tuesday", "Wednesday", "Thursday", 
+                                                           "Friday", "Saturday", "Sunday"))
+bike_rides1$month<-ordered(bike_rides1$month, levels=c("apr_20", "may_20","jun_20","jul_20", "aug_20", "sep_20", 
+                                                       "oct_20", "nov_20","dec_20","jan_21", "feb_21", "mar_21"))
+
+## Analyze the data
+# Look at specifics
+summary(bike_rides1$ride_length) # shows min, max, median, and avg ride lengths
+
+table(bike_rides1$customer_type) # makes a table of total customers with membership details
+
+## Use setNames to return the object, in this case we use 
+##aggregate to split ride length and customer type from data and summarize stats for each
+## looks at total rides for each customer type in minutes
+setNames(aggregate(ride_length ~ customer_type, bike_rides1, sum), c("customer_type", "total_ride_length(mins)"))
+
+## looks at rides based on customer type
+bike_rides1 %>% 
+  group_by(customer_type) %>% 
+  summarise(min_length = min(ride_length), max_length = max(ride_length), 
+            median_length = median(ride_length), mean_length = mean(ride_length))
+
+## looks at ride lengths broken down by day of week and customer type
+aggregate(bike_rides1$ride_length ~ bike_rides1$customer_type + bike_rides1$weekday, FUN = median)
+
+## looks at total number of rides and averages based on day of week and customer type
+bike_rides1 %>% 
+  group_by(customer_type, weekday) %>% 
+  summarise(total_rides = n(), avg_ride = mean(ride_length)) %>% 
+  arrange(weekday)
+
+
+## Data Viz!
+bike_rides1 %>%    #total rides broken down by weekday
+  group_by(customer_type, weekday) %>% 
+  summarise(number_of_rides = n() ) %>% 
+  arrange(customer_type, weekday) %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = customer_type)) + geom_col(position = "dodge") + 
+  labs(x='Day of Week', y='Total Number of Rides', title='Rides per Day of Week', fill = 'Type of Membership') +
+  scale_y_continuous(breaks = c(250000, 500000, 750000), labels = c("250K", "500K", "750K"))
+
+
+bike_rides1 %>%   # total rides broken down by month
+  group_by(customer_type, month) %>%  
+  summarise(total_rides = n(),`average_duration_(mins)` = mean(ride_length)) %>% 
+  arrange(customer_type) %>% 
+  ggplot(aes(x=month, y=total_rides, fill = customer_type)) + geom_col(position = "dodge") + 
+  labs(x= "Month", y= "Total Number of Rides", title = "Rides per Month", fill = "Type of Membership") + 
+  scale_y_continuous(breaks = c(100000, 200000, 300000, 400000), labels = c("100K", "200K", "300K", "400K")) + theme(axis.text.x = element_text(angle = 45))
+
+
+bike_rides1 %>%   # Average length by Customer Type and Day of Week
+  group_by(customer_type, weekday) %>% 
+  summarise(average_ride_length = mean(ride_length)) %>% 
+  ggplot(aes(x=weekday, y = average_ride_length, fill = customer_type))+
+  geom_col(position = "dodge") + labs (x="Day of Week", y="Average Ride Length (min)", 
+                                       title = "Average Ride Length by Customer Type and Day of Week", 
+                                       fill = "Type of Membership")
+
+
+bike_rides1 %>%  # Average ride length by customer type and month
+  group_by(customer_type, month) %>% 
+  summarise(average_ride_length = mean(ride_length)) %>% 
+  ggplot(aes(x=month, y = average_ride_length, fill = customer_type))+ 
+  geom_col(position = "dodge") +
+  labs (x="Month", y = "Average Ride Length (min)", title = "Average Ride Length by Customer Type and Month", 
+        fill = "Type of Membership") + theme(axis.text.x = element_text(angle = 45))
+
+
+bike_rides1 %>%    # Looking at breakdown of bike types rented
+  ggplot(aes(x = bike_type, fill = customer_type)) + geom_bar(position = "dodge") + 
+  labs(x= 'Bike Type', y='Number of Rentals', title='Bike Type Breakdown', fill = 'Type of Membership') +
+  scale_y_continuous(breaks = c(500000, 1000000, 1500000), labels = c("500K", "1Mil", "1.5Mil"))
+
+
+bike_rides1 %>%     # Looking at demand over a 24 hour day
+  group_by(customer_type, time) %>% 
+  summarise(total_rides = n()) %>% 
+  ggplot(aes(x=time, y=total_rides, color = customer_type, group = customer_type)) +
+  geom_line() + scale_x_datetime(date_breaks = "1 hour",
+                                 date_labels = "%H:%M", expand = c(0,0)) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  labs(title ="Demand Throughout the Day", x = "Time", y = "Total Rides")
